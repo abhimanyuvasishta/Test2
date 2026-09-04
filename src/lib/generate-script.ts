@@ -1,5 +1,5 @@
 import type { ClientBrief, GenerationResult } from "@/types";
-import { generateTemplateScript } from "./template-script";
+import { generateTemplateScript } from "./director";
 
 /**
  * Prefer the server AI route when it is available (next dev / next start).

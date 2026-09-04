@@ -13,9 +13,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Client Video Studio — AI-Powered Executive Demos",
+  title: "Client Video Studio — Executive Product Films",
   description:
-    "Generate professional, impactful product demo videos for CEOs, CTOs, and marketing leaders using AI.",
+    "Turn client product callouts into cinematic demo films for CEOs, CTOs, and marketing leaders.",
 };
 
 export default function RootLayout({

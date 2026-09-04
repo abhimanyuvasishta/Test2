@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ClientBrief, VideoScript } from "@/types";
 import { exportVideo, previewScene } from "@/lib/video-renderer";
+import { formatDuration } from "@/lib/director";
+import { loadScriptPlates, type ShotPlateMap } from "@/lib/shot-loader";
 
 interface VideoStudioProps {
   brief: ClientBrief;
@@ -14,47 +16,112 @@ interface VideoStudioProps {
 export default function VideoStudio({ brief, script, source, onBack }: VideoStudioProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [activeScene, setActiveScene] = useState(0);
-  const [previewProgress, setPreviewProgress] = useState(0.5);
+  const [previewProgress, setPreviewProgress] = useState(0.45);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [plates, setPlates] = useState<ShotPlateMap>({});
+  const [castStatus, setCastStatus] = useState("Casting characters…");
+  const [platesReady, setPlatesReady] = useState(false);
   const animationRef = useRef<number | null>(null);
+  const playingRef = useRef(false);
+  const platesRef = useRef<ShotPlateMap>({});
+
+  const filmProgressFor = useCallback(
+    (sceneIndex: number, localProgress: number) => {
+      const elapsed =
+        script.scenes.slice(0, sceneIndex).reduce((sum, s) => sum + s.durationMs, 0) +
+        script.scenes[sceneIndex].durationMs * localProgress;
+      return elapsed / script.totalDurationMs;
+    },
+    [script.scenes, script.totalDurationMs]
+  );
 
   const renderPreview = useCallback(
     (sceneIndex: number, progress: number) => {
       const canvas = canvasRef.current;
       if (!canvas || !script.scenes[sceneIndex]) return;
-      previewScene(canvas, brief, script.scenes[sceneIndex], progress);
+      previewScene(
+        canvas,
+        brief,
+        script.scenes[sceneIndex],
+        progress,
+        sceneIndex,
+        script.scenes.length,
+        filmProgressFor(sceneIndex, progress),
+        platesRef.current[script.scenes[sceneIndex].id]
+      );
     },
-    [brief, script.scenes]
+    [brief, filmProgressFor, script.scenes]
   );
 
   useEffect(() => {
-    renderPreview(activeScene, previewProgress);
-  }, [activeScene, previewProgress, renderPreview]);
+    let cancelled = false;
+    setPlatesReady(false);
+    setCastStatus("Casting characters and generating commercial plates…");
+    loadScriptPlates(script.scenes, (done, total, map) => {
+      if (cancelled) return;
+      platesRef.current = map;
+      setPlates(map);
+      if (Object.keys(map).length > 0) setPlatesReady(true);
+      setCastStatus(`Shot ${done} of ${total} in camera…`);
+    })
+      .then((loaded) => {
+        if (cancelled) return;
+        platesRef.current = loaded;
+        setPlates(loaded);
+        setPlatesReady(true);
+        const n = Object.keys(loaded).length;
+        setCastStatus(
+          n ? `${n} AI character plates ready` : "Live plates unavailable — using staged characters"
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPlatesReady(true);
+          setCastStatus("Live plates unavailable — using staged characters");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [script.scenes]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      renderPreview(activeScene, previewProgress);
+    }
+  }, [activeScene, previewProgress, renderPreview, isPlaying, plates]);
 
   useEffect(() => {
     return () => {
       if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, [downloadUrl]);
 
+  const stopPlayback = () => {
+    playingRef.current = false;
+    setIsPlaying(false);
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+  };
+
   const playPreview = () => {
     if (isPlaying) {
-      setIsPlaying(false);
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      stopPlayback();
       return;
     }
 
+    playingRef.current = true;
     setIsPlaying(true);
     let sceneIdx = 0;
     let startTime = performance.now();
-    const scene = script.scenes[sceneIdx];
-    const duration = scene.durationMs;
 
     const animate = (now: number) => {
+      if (!playingRef.current) return;
+      const duration = script.scenes[sceneIdx].durationMs;
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
       setActiveScene(sceneIdx);
@@ -62,18 +129,17 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
       renderPreview(sceneIdx, progress);
 
       if (progress >= 1) {
-        sceneIdx++;
+        sceneIdx += 1;
         if (sceneIdx >= script.scenes.length) {
-          setIsPlaying(false);
+          stopPlayback();
           setActiveScene(0);
           setPreviewProgress(0);
+          renderPreview(0, 0);
           return;
         }
         startTime = now;
-        animationRef.current = requestAnimationFrame(animate);
-      } else {
-        animationRef.current = requestAnimationFrame(animate);
       }
+      animationRef.current = requestAnimationFrame(animate);
     };
 
     animationRef.current = requestAnimationFrame(animate);
@@ -83,6 +149,7 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
     const canvas = canvasRef.current;
     if (!canvas || isExporting) return;
 
+    stopPlayback();
     setIsExporting(true);
     setExportProgress(0);
     setExportError(null);
@@ -96,6 +163,8 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
         canvas,
         brief,
         scenes: script.scenes,
+        plates,
+        withScore: true,
         onProgress: setExportProgress,
         onSceneChange: setActiveScene,
       });
@@ -105,51 +174,54 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
 
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${brief.productName.replace(/\s+/g, "-").toLowerCase()}-demo.webm`;
+      link.download = `${brief.productName.replace(/\s+/g, "-").toLowerCase()}-executive-film.webm`;
       link.click();
     } catch (err) {
       console.error("Export failed:", err);
       setExportError(
         err instanceof Error
           ? err.message
-          : "Video export failed. Try Chrome or Edge, then Play Preview first."
+          : "Video export failed. Use Chrome or Edge, then play the film once before exporting."
       );
     } finally {
       setIsExporting(false);
     }
   };
 
-  const durationSec = Math.round(script.totalDurationMs / 1000);
-
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Studio header */}
       <div className="glass-panel p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="font-display text-2xl font-bold">Video Studio</h2>
+          <h2 className="font-display text-2xl font-bold">Film studio</h2>
           <p className="text-white/50 text-sm mt-1">
-            {script.title} · {durationSec}s · {source === "ai" ? "AI script" : "Template script"}
+            {script.title} · {formatDuration(script.totalDurationMs)} · TV commercial
+            {source === "ai" ? " · GPT-directed" : ""}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button onClick={onBack} className="btn-secondary">
-            Back to Script
+            Back to script
           </button>
           <button onClick={playPreview} disabled={isExporting} className="btn-secondary">
-            {isPlaying ? "Stop Preview" : "Play Preview"}
+            {isPlaying ? "Stop" : "Play commercial"}
           </button>
-          <button onClick={handleExport} disabled={isExporting} className="btn-primary">
+          <button onClick={handleExport} disabled={isExporting || !platesReady} className="btn-primary">
             {isExporting ? (
               <>
                 <Spinner />
-                Exporting {Math.round(exportProgress * 100)}%
+                Recording {Math.round(exportProgress * 100)}%
               </>
             ) : (
               <>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
                 </svg>
-                Export Video
+                Export WebM
               </>
             )}
           </button>
@@ -157,15 +229,19 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Canvas preview */}
         <div className="lg:col-span-2">
           <div className="glass-panel p-4">
-            <div className="relative rounded-xl overflow-hidden bg-black aspect-video shadow-2xl shadow-brand-900/20">
+            <div className="relative rounded-xl overflow-hidden bg-black aspect-video shadow-2xl shadow-black/40">
               <canvas
                 ref={canvasRef}
                 className="w-full h-full object-contain"
                 style={{ imageRendering: "auto" }}
               />
+              {!platesReady && !isExporting && (
+                <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                  <p className="text-sm text-white/80">{castStatus}</p>
+                </div>
+              )}
               {isExporting && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                   <div className="text-center">
@@ -176,7 +252,7 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
                       />
                     </div>
                     <p className="text-sm text-white/70">
-                      Rendering scene {activeScene + 1} of {script.scenes.length}...
+                      Recording scene {activeScene + 1} of {script.scenes.length}...
                     </p>
                   </div>
                 </div>
@@ -186,9 +262,9 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
 
           {downloadUrl && !isExporting && (
             <div className="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
-              <p className="text-emerald-300 text-sm">Video exported successfully!</p>
+              <p className="text-emerald-300 text-sm">Film recorded. WebM is ready for the briefing room.</p>
               <a href={downloadUrl} download className="btn-secondary text-sm">
-                Download Again
+                Download again
               </a>
             </div>
           )}
@@ -199,17 +275,17 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
           )}
         </div>
 
-        {/* Scene list */}
         <div className="glass-panel p-6">
-          <h3 className="font-display font-bold mb-4">Scenes</h3>
+          <p className="text-white/40 text-xs mb-4">{castStatus}</p>
+          <h3 className="font-display font-bold mb-4">Shots</h3>
           <div className="space-y-2 max-h-[500px] overflow-y-auto">
             {script.scenes.map((scene, index) => (
               <button
                 key={scene.id}
                 onClick={() => {
+                  stopPlayback();
                   setActiveScene(index);
-                  setPreviewProgress(0.5);
-                  setIsPlaying(false);
+                  setPreviewProgress(0.45);
                 }}
                 className={`w-full text-left p-3 rounded-xl transition-all duration-200 ${
                   activeScene === index
@@ -218,7 +294,9 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-bold text-white/40">{index + 1}</span>
+                  <span className="text-xs font-bold text-white/40">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
                   <span className="text-xs text-white/30 capitalize">{scene.type}</span>
                   <span className="text-xs text-white/20 ml-auto">
                     {(scene.durationMs / 1000).toFixed(1)}s
@@ -229,17 +307,16 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
             ))}
           </div>
 
-          {/* Scene scrubber */}
           <div className="mt-6">
-            <label className="text-xs text-white/40 mb-2 block">Scene Progress</label>
+            <label className="text-xs text-white/40 mb-2 block">Scene progress</label>
             <input
               type="range"
               min="0"
               max="100"
               value={previewProgress * 100}
               onChange={(e) => {
+                stopPlayback();
                 setPreviewProgress(Number(e.target.value) / 100);
-                setIsPlaying(false);
               }}
               className="w-full accent-brand-500"
             />

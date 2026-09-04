@@ -6,13 +6,35 @@ import {
   clientBriefSchema,
   defaultBrief,
   sampleBrief,
+  kiwiBrief,
   type ClientBriefInput,
 } from "@/lib/validation";
+import type { AudienceType, HighlightKind, VideoTone } from "@/types";
 
 interface BriefFormProps {
   onSubmit: (data: ClientBriefInput) => void;
   isLoading: boolean;
 }
+
+const AUDIENCES: { id: AudienceType; title: string; detail: string }[] = [
+  { id: "ceo", title: "CEO", detail: "Value, risk, speed to outcome" },
+  { id: "cto", title: "CTO", detail: "Architecture, reliability, production" },
+  { id: "marketing", title: "Marketing", detail: "Category story and proof" },
+  { id: "mixed", title: "C-suite mix", detail: "CEO, CTO, and CMO in one room" },
+];
+
+const TONES: { id: VideoTone; title: string }[] = [
+  { id: "executive", title: "Executive" },
+  { id: "technical", title: "Technical" },
+  { id: "visionary", title: "Visionary" },
+  { id: "bold", title: "Bold" },
+];
+
+const KINDS: { id: HighlightKind; label: string }[] = [
+  { id: "capability", label: "Capability" },
+  { id: "outcome", label: "Outcome" },
+  { id: "proof", label: "Proof" },
+];
 
 export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
   const [form, setForm] = useState<ClientBriefInput>(defaultBrief);
@@ -41,12 +63,12 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
   };
 
   const addHighlight = () => {
-    if (form.highlights.length >= 8) return;
+    if (form.highlights.length >= 12) return;
     setForm((prev) => ({
       ...prev,
       highlights: [
         ...prev.highlights,
-        { id: uuidv4(), title: "", description: "", metric: "" },
+        { id: uuidv4(), title: "", description: "", metric: "", kind: "capability" },
       ],
     }));
   };
@@ -61,7 +83,16 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const result = clientBriefSchema.safeParse(form);
+    const normalized = {
+      ...form,
+      customerQuote: form.customerQuote?.trim() || undefined,
+      quoteAttribution: form.quoteAttribution?.trim() || undefined,
+      highlights: form.highlights.map((h) => ({
+        ...h,
+        metric: h.metric?.trim() || undefined,
+      })),
+    };
+    const result = clientBriefSchema.safeParse(normalized);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.issues.forEach((issue) => {
@@ -74,43 +105,47 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
     onSubmit(result.data);
   };
 
-  const loadSample = () => {
+  const loadSample = (pack: ClientBriefInput) => {
     setForm({
-      ...sampleBrief,
-      highlights: sampleBrief.highlights.map((h) => ({ ...h, id: uuidv4() })),
+      ...pack,
+      highlights: pack.highlights.map((h) => ({ ...h, id: uuidv4() })),
     });
     setErrors({});
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Client & Product */}
       <section className="glass-panel p-8 animate-slide-up">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="font-display text-xl font-bold">Client & Product Details</h3>
+            <h3 className="font-display text-xl font-bold">Client & product</h3>
             <p className="text-sm text-white/50 mt-1">
-              Basic information about your client and their product
+              Who commissioned the film, and what must the room remember.
             </p>
           </div>
-          <button type="button" onClick={loadSample} className="btn-secondary text-sm">
-            Load Sample
-          </button>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => loadSample(kiwiBrief)} className="btn-secondary text-sm">
+              KIWI Super NCB
+            </button>
+            <button type="button" onClick={() => loadSample(sampleBrief)} className="btn-secondary text-sm">
+              Load sample
+            </button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-5">
-          <Field label="Client Name" error={errors.clientName}>
+          <Field label="Client name" error={errors.clientName}>
             <input
               className="input-field"
-              placeholder="Acme Corporation"
+              placeholder="Meridian Systems"
               value={form.clientName}
               onChange={(e) => updateField("clientName", e.target.value)}
             />
           </Field>
-          <Field label="Product Name" error={errors.productName}>
+          <Field label="Product name" error={errors.productName}>
             <input
               className="input-field"
-              placeholder="Nexus Platform"
+              placeholder="Aether Control"
               value={form.productName}
               onChange={(e) => updateField("productName", e.target.value)}
             />
@@ -118,7 +153,7 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
           <Field label="Tagline" error={errors.tagline} className="md:col-span-2">
             <input
               className="input-field"
-              placeholder="Enterprise intelligence, reimagined"
+              placeholder="The operating system for industrial intelligence"
               value={form.tagline}
               onChange={(e) => updateField("tagline", e.target.value)}
             />
@@ -126,12 +161,12 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
           <Field label="Industry" error={errors.industry}>
             <input
               className="input-field"
-              placeholder="Enterprise SaaS"
+              placeholder="Industrial AI"
               value={form.industry}
               onChange={(e) => updateField("industry", e.target.value)}
             />
           </Field>
-          <Field label="Brand Color" error={errors.brandColor}>
+          <Field label="Brand color" error={errors.brandColor}>
             <div className="flex gap-3">
               <input
                 type="color"
@@ -149,69 +184,111 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
         </div>
       </section>
 
-      {/* Audience & Tone */}
-      <section className="glass-panel p-8 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-        <h3 className="font-display text-xl font-bold mb-6">Audience & Tone</h3>
+      <section className="glass-panel p-8 animate-slide-up" style={{ animationDelay: "0.05s" }}>
+        <h3 className="font-display text-xl font-bold mb-2">Stakes the room must feel</h3>
+        <p className="text-sm text-white/50 mb-6">
+          CEO, CTO, and marketing heads need the problem, the outcome, and optional social proof.
+        </p>
         <div className="grid md:grid-cols-2 gap-5">
-          <Field label="Target Audience">
-            <select
-              className="input-field"
-              value={form.targetAudience}
-              onChange={(e) =>
-                updateField("targetAudience", e.target.value as ClientBriefInput["targetAudience"])
-              }
-            >
-              <option value="ceo">CEO — Strategic & ROI focused</option>
-              <option value="cto">CTO — Technical & architecture focused</option>
-              <option value="marketing">Marketing — Brand & differentiation focused</option>
-              <option value="mixed">Mixed C-Suite audience</option>
-            </select>
+          <Field label="Problem to call out" error={errors.problemStatement} className="md:col-span-2">
+            <textarea
+              className="input-field min-h-[96px] resize-y"
+              placeholder="What breaks if they do nothing?"
+              value={form.problemStatement}
+              onChange={(e) => updateField("problemStatement", e.target.value)}
+            />
           </Field>
-          <Field label="Video Tone">
-            <select
-              className="input-field"
-              value={form.tone}
-              onChange={(e) => updateField("tone", e.target.value as ClientBriefInput["tone"])}
-            >
-              <option value="executive">Executive — Polished & authoritative</option>
-              <option value="technical">Technical — Precise & credible</option>
-              <option value="visionary">Visionary — Aspirational & transformative</option>
-              <option value="bold">Bold — Disruptive & confident</option>
-            </select>
+          <Field label="Desired outcome" error={errors.desiredOutcome} className="md:col-span-2">
+            <textarea
+              className="input-field min-h-[80px] resize-y"
+              placeholder="What does a successful quarter look like after this product?"
+              value={form.desiredOutcome}
+              onChange={(e) => updateField("desiredOutcome", e.target.value)}
+            />
           </Field>
-          <Field label="Call to Action" error={errors.callToAction} className="md:col-span-2">
+          <Field label="Customer quote (optional)" error={errors.customerQuote}>
+            <textarea
+              className="input-field min-h-[80px] resize-y"
+              placeholder="A sentence a buyer would actually say"
+              value={form.customerQuote || ""}
+              onChange={(e) => updateField("customerQuote", e.target.value)}
+            />
+          </Field>
+          <Field label="Quote attribution" error={errors.quoteAttribution}>
             <input
               className="input-field"
-              placeholder="Schedule a strategic demo today"
-              value={form.callToAction}
-              onChange={(e) => updateField("callToAction", e.target.value)}
+              placeholder="Name, title, company"
+              value={form.quoteAttribution || ""}
+              onChange={(e) => updateField("quoteAttribution", e.target.value)}
             />
           </Field>
         </div>
       </section>
 
-      {/* Product Highlights */}
-      <section className="glass-panel p-8 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+      <section className="glass-panel p-8 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+        <h3 className="font-display text-xl font-bold mb-6">Audience & tone</h3>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {AUDIENCES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => updateField("targetAudience", item.id)}
+              className={`text-left rounded-xl border px-4 py-4 transition-all ${
+                form.targetAudience === item.id
+                  ? "border-brand-400/60 bg-brand-500/15"
+                  : "border-white/10 bg-white/[0.03] hover:border-white/20"
+              }`}
+            >
+              <div className="font-display font-semibold">{item.title}</div>
+              <div className="text-xs text-white/50 mt-1">{item.detail}</div>
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {TONES.map((tone) => (
+            <button
+              key={tone.id}
+              type="button"
+              onClick={() => updateField("tone", tone.id)}
+              className={`px-4 py-2 rounded-full text-sm border transition-all ${
+                form.tone === tone.id
+                  ? "border-brand-400/60 bg-brand-500/15 text-brand-200"
+                  : "border-white/10 text-white/60 hover:border-white/20"
+              }`}
+            >
+              {tone.title}
+            </button>
+          ))}
+        </div>
+        <Field label="Call to action" error={errors.callToAction}>
+          <input
+            className="input-field"
+            placeholder="Request the executive briefing"
+            value={form.callToAction}
+            onChange={(e) => updateField("callToAction", e.target.value)}
+          />
+        </Field>
+      </section>
+
+      <section className="glass-panel p-8 animate-slide-up" style={{ animationDelay: "0.15s" }}>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="font-display text-xl font-bold">Product Highlights</h3>
+            <h3 className="font-display text-xl font-bold">Product callouts</h3>
             <p className="text-sm text-white/50 mt-1">
-              Add the key capabilities and proof points your client wants featured
+              Each callout becomes its own scene. Add capabilities, outcomes, and proof.
             </p>
           </div>
           <button
             type="button"
             onClick={addHighlight}
-            disabled={form.highlights.length >= 8}
+            disabled={form.highlights.length >= 12}
             className="btn-secondary text-sm"
           >
-            + Add Highlight
+            + Add callout
           </button>
         </div>
 
-        {errors.highlights && (
-          <p className="text-red-400 text-sm mb-4">{errors.highlights}</p>
-        )}
+        {errors.highlights && <p className="text-red-400 text-sm mb-4">{errors.highlights}</p>}
 
         <div className="space-y-5">
           {form.highlights.map((highlight, index) => (
@@ -219,9 +296,9 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
               key={highlight.id}
               className="p-5 rounded-xl bg-surface-700/30 border border-white/5 space-y-4"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-brand-400">
-                  Highlight {index + 1}
+                  Callout {String(index + 1).padStart(2, "0")}
                 </span>
                 {form.highlights.length > 1 && (
                   <button
@@ -233,37 +310,47 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
                   </button>
                 )}
               </div>
+              <div className="flex flex-wrap gap-2">
+                {KINDS.map((kind) => (
+                  <button
+                    key={kind.id}
+                    type="button"
+                    onClick={() => updateHighlight(index, "kind", kind.id)}
+                    className={`px-3 py-1 rounded-full text-xs border ${
+                      (highlight.kind || "capability") === kind.id
+                        ? "border-brand-400/50 text-brand-200 bg-brand-500/10"
+                        : "border-white/10 text-white/45"
+                    }`}
+                  >
+                    {kind.label}
+                  </button>
+                ))}
+              </div>
               <div className="grid md:grid-cols-2 gap-4">
-                <Field
-                  label="Title"
-                  error={errors[`highlights.${index}.title`]}
-                >
+                <Field label="Title" error={errors[`highlights.${index}.title`]}>
                   <input
                     className="input-field"
-                    placeholder="Unified Data Intelligence"
+                    placeholder="Live Operational Twin"
                     value={highlight.title}
                     onChange={(e) => updateHighlight(index, "title", e.target.value)}
                   />
                 </Field>
-                <Field
-                  label="Key Metric (optional)"
-                  error={errors[`highlights.${index}.metric`]}
-                >
+                <Field label="Metric (optional)" error={errors[`highlights.${index}.metric`]}>
                   <input
                     className="input-field"
-                    placeholder="40% faster decisions"
+                    placeholder="18 min to insight"
                     value={highlight.metric || ""}
                     onChange={(e) => updateHighlight(index, "metric", e.target.value)}
                   />
                 </Field>
                 <Field
-                  label="Description"
+                  label="What to say on screen"
                   error={errors[`highlights.${index}.description`]}
                   className="md:col-span-2"
                 >
                   <textarea
                     className="input-field min-h-[80px] resize-y"
-                    placeholder="Describe the capability and its business impact..."
+                    placeholder="The sentence a CTO or CEO should be able to repeat."
                     value={highlight.description}
                     onChange={(e) => updateHighlight(index, "description", e.target.value)}
                   />
@@ -279,11 +366,11 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
           {isLoading ? (
             <>
               <Spinner />
-              Generating Script...
+              Directing film...
             </>
           ) : (
             <>
-              Generate AI Script
+              Generate executive film
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>

@@ -11,9 +11,9 @@ import type { ClientBriefInput } from "@/lib/validation";
 import { generateScript } from "@/lib/generate-script";
 
 const STEPS = [
-  { id: 1, label: "Client Brief" },
-  { id: 2, label: "AI Script" },
-  { id: 3, label: "Video Studio" },
+  { id: 1, label: "Client brief" },
+  { id: 2, label: "Director script" },
+  { id: 3, label: "Film studio" },
 ];
 
 export default function HomePage() {
@@ -63,7 +63,7 @@ export default function HomePage() {
             </div>
             <div>
               <h1 className="font-display font-bold text-lg tracking-tight">Client Video Studio</h1>
-              <p className="text-xs text-white/40">AI-powered executive demos</p>
+              <p className="text-xs text-white/40">AI TV commercials</p>
             </div>
           </div>
           <StepIndicator steps={STEPS} currentStep={step} />
@@ -76,14 +76,14 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-b from-brand-600/10 via-transparent to-transparent" />
           <div className="max-w-7xl mx-auto px-6 py-16 text-center relative">
             <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight mb-4 animate-fade-in">
-              Turn Client Inputs Into
-              <span className="block bg-gradient-to-r from-brand-400 to-brand-600 bg-clip-text text-transparent">
-                Executive-Ready Demo Videos
+              Films your clients can
+              <span className="block bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">
+                air as a TV commercial
               </span>
             </h2>
             <p className="text-lg text-white/60 max-w-2xl mx-auto animate-slide-up">
-              Collect product highlights from your clients, let AI craft a cinematic script,
-              and export professional videos tailored for CEOs, CTOs, and marketing leaders.
+              Cast recurring characters, generate cinematic AI plates, and cut a 1080p spot with
+              dialogue, product story, and a packshot — not a slide deck.
             </p>
           </div>
         </section>
