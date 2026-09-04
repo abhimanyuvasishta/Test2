@@ -104,3 +104,47 @@ export const sampleBrief: ClientBriefInput = {
   ],
   callToAction: "Request the executive briefing",
 };
+
+export const kiwiBrief: ClientBriefInput = {
+  clientName: "KIWI Insurance",
+  productName: "Car Insurance",
+  tagline: "Super NCB",
+  industry: "General Insurance",
+  problemStatement:
+    "A single motor claim still erases years of no-claim bonus, so loyal drivers watch their premium jump overnight — and blame the brand, not the accident.",
+  desiredOutcome:
+    "Super NCB keeps the bonus intact so one scrape does not wipe the discount at renewal.",
+  customerQuote:
+    "I filed a claim and my NCB was still there at renewal. That is the first time an insurer felt fair.",
+  quoteAttribution: "Rahul M., policyholder, Bengaluru",
+  targetAudience: "marketing",
+  tone: "executive",
+  brandColor: "#000000",
+  highlights: [
+    {
+      id: "1",
+      title: "Super NCB protection",
+      description:
+        "One claim no longer wipes years of no-claim bonus. Super NCB keeps the discount even after a single incident.",
+      metric: "NCB stays intact",
+      kind: "outcome",
+    },
+    {
+      id: "2",
+      title: "Digital claim in minutes",
+      description:
+        "Start a motor claim from the phone — photos, garage, status — without a branch visit.",
+      metric: "15 min FNOL",
+      kind: "capability",
+    },
+    {
+      id: "3",
+      title: "Bumper-to-bumper certainty",
+      description:
+        "Zero-depreciation cover so a new car is repaired to new, not written down by wear tables.",
+      metric: "Zero dep add-on",
+      kind: "proof",
+    },
+  ],
+  callToAction: "Activate Super NCB on your motor book",
+};

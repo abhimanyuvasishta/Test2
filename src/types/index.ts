@@ -47,6 +47,12 @@ export interface VideoScene {
   metric?: string;
   voiceover?: string;
   durationMs: number;
+  character?: string;
+  characterRole?: string;
+  dialogue?: string;
+  location?: string;
+  imagePrompt?: string;
+  imageSeed?: number;
 }
 
 export interface VideoScript {

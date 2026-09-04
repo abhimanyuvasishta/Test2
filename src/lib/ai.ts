@@ -2,41 +2,36 @@ import OpenAI from "openai";
 import type { ClientBrief, GenerationResult, VideoScript } from "@/types";
 import { generateTemplateScript } from "./director";
 
-const SYSTEM_PROMPT = `You are an elite director of boardroom product films for CEOs, CTOs, and CMOs.
-
-Write cinematic, high-authority scripts. Short headlines. No hype adjectives that a CFO would mock. Every scene must earn its seconds.
+const SYSTEM_PROMPT = `You are a TV commercial director. You write 30-45 second spots with recurring characters, spoken dialogue, lived product moments, and photoreal camera plates — never slide-title films.
 
 Return ONLY valid JSON:
 {
   "title": "string",
-  "logline": "one sentence for the brief packet",
+  "logline": "one sentence",
   "scenes": [
     {
       "id": "unique string",
       "type": "intro" | "problem" | "highlight" | "quote" | "stats" | "cta" | "outro",
-      "kicker": "optional uppercase eyebrow, max 6 words",
-      "headline": "main on-screen text, max 8 words except quote scenes",
-      "subheadline": "optional supporting line",
-      "body": "optional detail",
-      "metric": "optional proof point",
-      "voiceover": "spoken line, one or two sentences",
-      "durationMs": number between 3500 and 6500
+      "kicker": "uppercase shot label",
+      "headline": "product super, short",
+      "subheadline": "optional",
+      "body": "optional",
+      "metric": "optional",
+      "voiceover": "narration",
+      "dialogue": "what the character says on camera",
+      "character": "name",
+      "characterRole": "role",
+      "location": "where we are",
+      "imagePrompt": "photoreal cinematic TV commercial still, 16:9, no text, no logos, detailed character and action",
+      "imageSeed": number,
+      "durationMs": number between 3500 and 6000
     }
   ],
-  "narratorNotes": "production notes",
+  "narratorNotes": "string",
   "totalDurationMs": number
 }
 
-Required order:
-1. intro — product name, tagline, audience kicker
-2. problem — the stakes from the problem statement, outcome card from desiredOutcome
-3. highlight — exactly one scene per product callout, in the given order
-4. quote — only if a customer quote is provided
-5. stats — only if two or more metrics exist
-6. cta
-7. outro — client name and product
-
-Keep the film between 30 and 55 seconds. Headlines are titles, not sentences.`;
+Must include the same 1-2 characters across shots. Open on the hero's life, play the problem as an incident, then product beats with dialogue, then packshot CTA. Keep 8-11 shots.`;
 
 function buildUserPrompt(brief: ClientBrief): string {
   const audienceLabels: Record<string, string> = {

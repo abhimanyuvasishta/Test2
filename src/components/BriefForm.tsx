@@ -6,6 +6,7 @@ import {
   clientBriefSchema,
   defaultBrief,
   sampleBrief,
+  kiwiBrief,
   type ClientBriefInput,
 } from "@/lib/validation";
 import type { AudienceType, HighlightKind, VideoTone } from "@/types";
@@ -104,10 +105,10 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
     onSubmit(result.data);
   };
 
-  const loadSample = () => {
+  const loadSample = (pack: ClientBriefInput) => {
     setForm({
-      ...sampleBrief,
-      highlights: sampleBrief.highlights.map((h) => ({ ...h, id: uuidv4() })),
+      ...pack,
+      highlights: pack.highlights.map((h) => ({ ...h, id: uuidv4() })),
     });
     setErrors({});
   };
@@ -122,9 +123,14 @@ export default function BriefForm({ onSubmit, isLoading }: BriefFormProps) {
               Who commissioned the film, and what must the room remember.
             </p>
           </div>
-          <button type="button" onClick={loadSample} className="btn-secondary text-sm">
-            Load sample brief
-          </button>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => loadSample(kiwiBrief)} className="btn-secondary text-sm">
+              KIWI Super NCB
+            </button>
+            <button type="button" onClick={() => loadSample(sampleBrief)} className="btn-secondary text-sm">
+              Load sample
+            </button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-5">

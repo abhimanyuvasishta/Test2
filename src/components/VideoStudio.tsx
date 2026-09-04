@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ClientBrief, VideoScript } from "@/types";
 import { exportVideo, previewScene } from "@/lib/video-renderer";
 import { formatDuration } from "@/lib/director";
+import { loadScriptPlates, type ShotPlateMap } from "@/lib/shot-loader";
 
 interface VideoStudioProps {
   brief: ClientBrief;
@@ -21,8 +22,12 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
   const [isPlaying, setIsPlaying] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [plates, setPlates] = useState<ShotPlateMap>({});
+  const [castStatus, setCastStatus] = useState("Casting characters…");
+  const [platesReady, setPlatesReady] = useState(false);
   const animationRef = useRef<number | null>(null);
   const playingRef = useRef(false);
+  const platesRef = useRef<ShotPlateMap>({});
 
   const filmProgressFor = useCallback(
     (sceneIndex: number, localProgress: number) => {
@@ -45,17 +50,46 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
         progress,
         sceneIndex,
         script.scenes.length,
-        filmProgressFor(sceneIndex, progress)
+        filmProgressFor(sceneIndex, progress),
+        platesRef.current[script.scenes[sceneIndex].id]
       );
     },
     [brief, filmProgressFor, script.scenes]
   );
 
   useEffect(() => {
+    let cancelled = false;
+    setPlatesReady(false);
+    setCastStatus("Casting characters and generating commercial plates…");
+    loadScriptPlates(script.scenes, (done, total) => {
+      if (!cancelled) setCastStatus(`Shot ${done} of ${total} in camera…`);
+    })
+      .then((loaded) => {
+        if (cancelled) return;
+        platesRef.current = loaded;
+        setPlates(loaded);
+        setPlatesReady(true);
+        const n = Object.keys(loaded).length;
+        setCastStatus(
+          n ? `${n} AI character plates ready` : "Live plates unavailable — using staged characters"
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPlatesReady(true);
+          setCastStatus("Live plates unavailable — using staged characters");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [script.scenes]);
+
+  useEffect(() => {
     if (!isPlaying) {
       renderPreview(activeScene, previewProgress);
     }
-  }, [activeScene, previewProgress, renderPreview, isPlaying]);
+  }, [activeScene, previewProgress, renderPreview, isPlaying, plates]);
 
   useEffect(() => {
     return () => {
@@ -125,6 +159,7 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
         canvas,
         brief,
         scenes: script.scenes,
+        plates,
         withScore: true,
         onProgress: setExportProgress,
         onSceneChange: setActiveScene,
@@ -155,8 +190,8 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
         <div>
           <h2 className="font-display text-2xl font-bold">Film studio</h2>
           <p className="text-white/50 text-sm mt-1">
-            {script.title} · {formatDuration(script.totalDurationMs)} ·{" "}
-            {source === "ai" ? "GPT-directed" : "Director engine"}
+            {script.title} · {formatDuration(script.totalDurationMs)} · TV commercial
+            {source === "ai" ? " · GPT-directed" : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -164,9 +199,9 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
             Back to script
           </button>
           <button onClick={playPreview} disabled={isExporting} className="btn-secondary">
-            {isPlaying ? "Stop" : "Play film"}
+            {isPlaying ? "Stop" : "Play commercial"}
           </button>
-          <button onClick={handleExport} disabled={isExporting} className="btn-primary">
+          <button onClick={handleExport} disabled={isExporting || !platesReady} className="btn-primary">
             {isExporting ? (
               <>
                 <Spinner />
@@ -198,6 +233,11 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
                 className="w-full h-full object-contain"
                 style={{ imageRendering: "auto" }}
               />
+              {!platesReady && !isExporting && (
+                <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                  <p className="text-sm text-white/80">{castStatus}</p>
+                </div>
+              )}
               {isExporting && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                   <div className="text-center">
@@ -232,7 +272,8 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
         </div>
 
         <div className="glass-panel p-6">
-          <h3 className="font-display font-bold mb-4">Scenes</h3>
+          <p className="text-white/40 text-xs mb-4">{castStatus}</p>
+          <h3 className="font-display font-bold mb-4">Shots</h3>
           <div className="space-y-2 max-h-[500px] overflow-y-auto">
             {script.scenes.map((scene, index) => (
               <button

@@ -34,6 +34,7 @@ export interface RenderContext {
   sceneIndex: number;
   sceneCount: number;
   filmProgress: number;
+  plate?: CanvasImageSource | null;
 }
 
 function easeOutCubic(t: number): number {
@@ -683,6 +684,165 @@ const SCENE_RENDERERS: Record<
   outro: renderOutroScene,
 };
 
+function drawKenBurns(
+  ctx: CanvasRenderingContext2D,
+  image: CanvasImageSource,
+  width: number,
+  height: number,
+  progress: number,
+  odd: boolean
+): void {
+  const iw = "width" in image ? Number(image.width) : width;
+  const ih = "height" in image ? Number(image.height) : height;
+  const scale = (odd ? 1.08 : 1.14) + progress * 0.1;
+  const drawW = width * scale;
+  const drawH = (iw && ih ? drawW * (ih / iw) : height * scale);
+  const x = odd ? -(drawW - width) * progress : -(drawW - width) * (1 - progress) * 0.4;
+  const y = -(drawH - height) / 2;
+  ctx.drawImage(image, x, y, drawW, drawH);
+}
+
+function drawIllustratedPlate(
+  rc: RenderContext,
+  scene: VideoScene,
+  progress: number
+): void {
+  const { ctx, width, height, brandColor } = rc;
+  const rgb = hexToRgb(brandColor);
+  ctx.fillStyle = "#050508";
+  ctx.fillRect(0, 0, width, height);
+  const sky = ctx.createLinearGradient(0, 0, 0, height);
+  sky.addColorStop(0, "#14141c");
+  sky.addColorStop(1, "#07070b");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, width, height);
+
+  const light = ctx.createRadialGradient(width * 0.7, height * 0.3, 20, width * 0.7, height * 0.3, 500);
+  light.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.18)`);
+  light.addColorStop(1, "transparent");
+  ctx.fillStyle = light;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = "#1a1a22";
+  ctx.fillRect(0, height * 0.62, width, height * 0.4);
+
+  const drift = (progress - 0.5) * 40;
+  ensureRoundRect(ctx);
+  ctx.fillStyle = "#0c0c10";
+  ctx.beginPath();
+  ctx.roundRect(width * 0.18 + drift, height * 0.58, width * 0.42, height * 0.16, 18);
+  ctx.fill();
+  ctx.fillStyle = "#d7d7dd";
+  ctx.fillRect(width * 0.22 + drift, height * 0.61, 70, 28);
+  ctx.fillRect(width * 0.48 + drift, height * 0.61, 70, 28);
+
+  const drawPerson = (x: number, y: number, tone: string, coat: string) => {
+    ctx.fillStyle = tone;
+    ctx.beginPath();
+    ctx.arc(x, y, 36, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = coat;
+    ctx.beginPath();
+    ctx.roundRect(x - 40, y + 30, 80, 140, 20);
+    ctx.fill();
+  };
+
+  drawPerson(width * 0.68, height * 0.52, "#c48a6a", "#1c1c1c");
+  if (scene.type === "highlight" || scene.type === "cta") {
+    drawPerson(width * 0.78, height * 0.5, "#e0b896", "#cfcfcf");
+  }
+}
+
+function drawTvOverlay(rc: RenderContext, scene: VideoScene, progress: number): void {
+  const { ctx, width, height, brandColor } = rc;
+  const bar = Math.round(height * 0.08);
+  ctx.fillStyle = "#050508";
+  ctx.fillRect(0, 0, width, bar);
+  ctx.fillRect(0, height - bar, width, bar);
+
+  const name = scene.character || rc.brief.clientName;
+  const role = scene.characterRole || "";
+  const nameAlpha = easeOutCubic(Math.min(progress * 2, 1));
+  ctx.globalAlpha = nameAlpha;
+  ctx.fillStyle = brandColor;
+  ctx.fillRect(72, height - 168, 6, 52);
+  ctx.font = `700 22px ${displayFont()}`;
+  ctx.fillStyle = "#f7f4ee";
+  ctx.textAlign = "left";
+  ctx.fillText(name.toUpperCase(), 92, height - 146);
+  ctx.font = `400 16px ${bodyFont()}`;
+  ctx.fillStyle = "rgba(247,244,238,0.55)";
+  ctx.fillText(role.toUpperCase(), 92, height - 122);
+  ctx.globalAlpha = 1;
+
+  const spoken = scene.dialogue || scene.voiceover;
+  if (spoken) {
+    const capAlpha = easeOutCubic(Math.max(0, (progress - 0.12) * 2));
+    ctx.globalAlpha = capAlpha;
+    ctx.font = `600 28px ${displayFont()}`;
+    ctx.fillStyle = "#f7f4ee";
+    ctx.textAlign = "center";
+    const lines = wrapText(ctx, `“${spoken}”`, width - 280);
+    let y = height - 220 - (Math.min(lines.length, 3) - 1) * 36;
+    for (const line of lines.slice(0, 3)) {
+      ctx.fillText(line, width / 2, y);
+      y += 36;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  if (scene.headline && (scene.type === "highlight" || scene.type === "cta" || scene.type === "outro")) {
+    const superAlpha = easeOutCubic(Math.max(0, (progress - 0.35) * 2));
+    ctx.globalAlpha = superAlpha;
+    ctx.font = `700 42px ${displayFont()}`;
+    ctx.fillStyle = "#f7f4ee";
+    ctx.textAlign = "left";
+    ctx.fillText(scene.headline, 72, 140);
+    if (scene.metric) {
+      ctx.font = `600 22px ${bodyFont()}`;
+      ctx.fillStyle = brandColor;
+      ctx.fillText(scene.metric, 72, 178);
+    } else if (scene.subheadline) {
+      ctx.font = `400 20px ${bodyFont()}`;
+      ctx.fillStyle = "rgba(247,244,238,0.7)";
+      ctx.fillText(scene.subheadline.slice(0, 72), 72, 178);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.font = `600 14px ${bodyFont()}`;
+  ctx.fillStyle = "rgba(247,244,238,0.45)";
+  ctx.textAlign = "left";
+  ctx.fillText(rc.brief.clientName.toUpperCase(), 72, height - 36);
+  ctx.textAlign = "right";
+  ctx.fillText(
+    `${String(rc.sceneIndex + 1).padStart(2, "0")} / ${String(rc.sceneCount).padStart(2, "0")}`,
+    width - 72,
+    height - 36
+  );
+}
+
+function renderCommercialScene(
+  rc: RenderContext,
+  scene: VideoScene,
+  progress: number
+): void {
+  const { ctx, width, height } = rc;
+  ctx.fillStyle = "#050508";
+  ctx.fillRect(0, 0, width, height);
+  if (rc.plate) {
+    drawKenBurns(ctx, rc.plate, width, height, progress, rc.sceneIndex % 2 === 1);
+  } else {
+    drawIllustratedPlate(rc, scene, progress);
+  }
+  const veil = ctx.createLinearGradient(0, height * 0.45, 0, height);
+  veil.addColorStop(0, "rgba(0,0,0,0)");
+  veil.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = veil;
+  ctx.fillRect(0, 0, width, height);
+  drawTvOverlay(rc, scene, progress);
+}
+
 export function renderScene(
   rc: RenderContext,
   scene: VideoScene,
@@ -691,23 +851,21 @@ export function renderScene(
   const { ctx, width, height } = rc;
   ctx.clearRect(0, 0, width, height);
   const painted: RenderContext = { ...rc, brandColor: filmAccent(rc.brandColor) };
-  const renderer = SCENE_RENDERERS[scene.type] || renderHighlightScene;
-  renderer(painted, scene, sceneProgress);
-  drawCaptions(painted, scene, sceneProgress);
-  drawChrome(painted, sceneProgress);
+  renderCommercialScene(painted, scene, sceneProgress);
 }
 
 export interface VideoExportOptions {
   canvas: HTMLCanvasElement;
   brief: ClientBrief;
   scenes: VideoScene[];
+  plates?: Record<string, CanvasImageSource>;
   withScore?: boolean;
   onProgress?: (progress: number) => void;
   onSceneChange?: (sceneIndex: number) => void;
 }
 
 export async function exportVideo(options: VideoExportOptions): Promise<Blob> {
-  const { canvas, brief, scenes, onProgress, onSceneChange, withScore = true } = options;
+  const { canvas, brief, scenes, onProgress, onSceneChange, withScore = true, plates } = options;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas context unavailable");
 
@@ -804,6 +962,7 @@ export async function exportVideo(options: VideoExportOptions): Promise<Blob> {
           sceneIndex: Math.min(sceneIndex, scenes.length - 1),
           sceneCount: scenes.length,
           filmProgress,
+          plate: plates?.[current.id],
         },
         current,
         sceneProgress
@@ -829,7 +988,8 @@ export function previewScene(
   progress: number,
   sceneIndex = 0,
   sceneCount = 1,
-  filmProgress = progress
+  filmProgress = progress,
+  plate?: CanvasImageSource | null
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -848,6 +1008,7 @@ export function previewScene(
       sceneIndex,
       sceneCount,
       filmProgress,
+      plate,
     },
     scene,
     progress

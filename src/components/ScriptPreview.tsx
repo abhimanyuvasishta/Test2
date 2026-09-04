@@ -66,7 +66,7 @@ export default function ScriptPreview({
               Edit brief
             </button>
             <button onClick={onProceed} className="btn-primary">
-              Open film studio
+              Open commercial studio
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
@@ -108,6 +108,16 @@ export default function ScriptPreview({
                   </span>
                 </div>
                 <h4 className="font-semibold text-lg">{scene.headline}</h4>
+                {scene.character && (
+                  <p className="text-brand-300 text-sm mt-1">
+                    {scene.character}
+                    {scene.characterRole ? ` · ${scene.characterRole}` : ""}
+                    {scene.location ? ` · ${scene.location}` : ""}
+                  </p>
+                )}
+                {scene.dialogue && (
+                  <p className="text-white/80 text-sm mt-2 italic">“{scene.dialogue}”</p>
+                )}
                 {scene.subheadline && (
                   <p className="text-white/50 text-sm mt-1">{scene.subheadline}</p>
                 )}

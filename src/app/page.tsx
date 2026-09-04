@@ -63,7 +63,7 @@ export default function HomePage() {
             </div>
             <div>
               <h1 className="font-display font-bold text-lg tracking-tight">Client Video Studio</h1>
-              <p className="text-xs text-white/40">Executive product films</p>
+              <p className="text-xs text-white/40">AI TV commercials</p>
             </div>
           </div>
           <StepIndicator steps={STEPS} currentStep={step} />
@@ -78,12 +78,12 @@ export default function HomePage() {
             <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight mb-4 animate-fade-in">
               Films your clients can
               <span className="block bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">
-                take into the boardroom
+                air as a TV commercial
               </span>
             </h2>
             <p className="text-lg text-white/60 max-w-2xl mx-auto animate-slide-up">
-              Collect every product callout, stake, and proof point. Direct an audience-specific
-              script for CEO, CTO, or marketing leadership — then preview and export a 1080p film.
+              Cast recurring characters, generate cinematic AI plates, and cut a 1080p spot with
+              dialogue, product story, and a packshot — not a slide deck.
             </p>
           </div>
         </section>

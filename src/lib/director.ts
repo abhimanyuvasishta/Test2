@@ -1,172 +1,297 @@
-import type {
-  AudienceType,
-  ClientBrief,
-  ProductHighlight,
-  VideoScene,
-  VideoScript,
-  VideoTone,
-} from "@/types";
+import type { ClientBrief, ProductHighlight, VideoScene, VideoScript } from "@/types";
 
-const AUDIENCE_KICKER: Record<AudienceType, string> = {
-  ceo: "FOR THE OFFICE OF THE CEO",
-  cto: "FOR THE OFFICE OF THE CTO",
-  marketing: "FOR MARKETING LEADERSHIP",
-  mixed: "FOR THE EXECUTIVE COMMITTEE",
-};
-
-const AUDIENCE_INTRO: Record<AudienceType, string> = {
-  ceo: "A board-ready view of value, risk, and speed to outcome.",
-  cto: "Architecture, reliability, and the path to production — without theatre.",
-  marketing: "A category narrative your buyers will remember after the room goes dark.",
-  mixed: "One film. Three lenses. CEO, CTO, and marketing — aligned.",
-};
-
-const TONE_CLOSE: Record<VideoTone, string> = {
-  executive: "Measured. Decisive. Ready for the board.",
-  technical: "Proven in production. Built to be inspected.",
-  visionary: "The next operating chapter starts now.",
-  bold: "The category does not wait. Neither should you.",
-};
-
-const KIND_KICKER: Record<string, string> = {
-  capability: "CAPABILITY",
-  outcome: "BUSINESS OUTCOME",
-  proof: "PROOF",
-};
-
-function inferKind(highlight: ProductHighlight, index: number): string {
-  if (highlight.kind) return highlight.kind;
-  if (highlight.metric && /%|x |roi|sla|uptime/i.test(highlight.metric)) {
-    return index === 0 ? "capability" : "proof";
-  }
-  return index % 3 === 1 ? "outcome" : "capability";
+interface CastMember {
+  name: string;
+  role: string;
+  look: string;
 }
 
-function punchyLine(text: string, maxWords = 9): string {
-  const cleaned = text.replace(/\s+/g, " ").trim();
-  const words = cleaned.split(" ");
-  if (words.length <= maxWords) {
-    return cleaned.replace(/[.]+$/, "");
-  }
-  return `${words.slice(0, maxWords).join(" ").replace(/[,:;]+$/, "")}`;
+interface Cast {
+  hero: CastMember;
+  ally: CastMember;
+  world: string;
+  lighting: string;
+  vehicle?: string;
 }
 
-function voiceForHighlight(
-  brief: ClientBrief,
-  highlight: ProductHighlight
-): string {
-  const metric = highlight.metric ? ` Proof: ${highlight.metric}.` : "";
-  if (brief.targetAudience === "ceo") {
-    return `${highlight.title}. ${punchyLine(highlight.description, 16)}.${metric}`;
+function industryCast(brief: ClientBrief): Cast {
+  const industry = brief.industry.toLowerCase();
+  const brand = brief.clientName;
+
+  if (/insur|motor|auto|car|ncb/.test(`${industry} ${brief.productName} ${brief.tagline}`)) {
+    return {
+      hero: {
+        name: "Mira Sen",
+        role: "Policyholder",
+        look: "South Asian woman 34, shoulder-length black hair, charcoal wool coat, gold hoop earrings, photoreal",
+      },
+      ally: {
+        name: `${brand} advisor`,
+        role: "Advisor",
+        look: "South Asian man 38, black suit, no tie, calm expression, photoreal, same commercial",
+      },
+      world: "rain-slick Bengaluru streets and a premium parking garage at night",
+      lighting: "cinematic teal-and-warm practicals, anamorphic bokeh, luxury TV ad",
+      vehicle: "glossy black hatchback",
+    };
   }
-  if (brief.targetAudience === "cto") {
-    return `${highlight.title} is production-ready. ${punchyLine(highlight.description, 18)}.${metric}`;
+
+  if (/industrial|plant|ops|manufact/.test(industry)) {
+    return {
+      hero: {
+        name: "Elena Voss",
+        role: "COO",
+        look: "woman 48, silver-blonde hair tied back, navy work coat over a blouse, photoreal",
+      },
+      ally: {
+        name: `${brand} lead`,
+        role: "Systems lead",
+        look: "man 42, rolled sleeves, headset, control-room lighting, photoreal",
+      },
+      world: "a vast industrial control room overlooking a night-shift plant",
+      lighting: "cinematic cool monitors and warm practical lamps",
+    };
   }
-  if (brief.targetAudience === "marketing") {
-    return `Lead with ${highlight.title}. ${punchyLine(highlight.description, 16)}.${metric}`;
+
+  return {
+    hero: {
+      name: "Alex Rahman",
+      role: "Buyer",
+      look: "person 36, tailored black jacket, short dark hair, photoreal",
+    },
+    ally: {
+      name: `${brand} specialist`,
+      role: "Specialist",
+      look: "person 40, charcoal suit, approachable, photoreal",
+    },
+    world: `a premium ${brief.industry} workplace at dusk`,
+    lighting: "cinematic luxury commercial lighting, shallow depth of field",
+  };
+}
+
+function seedFrom(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
-  return `${highlight.title}. ${punchyLine(highlight.description, 18)}.${metric}`;
+  return (h >>> 0) % 100000;
+}
+
+function platePrompt(brief: ClientBrief, cast: Cast, action: string): string {
+  const vehicle = cast.vehicle ? `, ${cast.vehicle} in frame when relevant` : "";
+  return [
+    "photoreal cinematic TV commercial still, 35mm anamorphic, 16:9, ultra detailed",
+    cast.lighting,
+    action,
+    `hero: ${cast.hero.look}`,
+    `second character when present: ${cast.ally.look}`,
+    `location: ${cast.world}${vehicle}`,
+    `brand world of ${brief.clientName} ${brief.productName}, ${brief.tagline}`,
+    "no captions, no logos, no watermark, no text overlay",
+  ].join(". ");
+}
+
+function beatLine(highlight: ProductHighlight): string {
+  if (highlight.metric) return `${highlight.title}. ${highlight.metric}.`;
+  return highlight.title;
 }
 
 export function generateTemplateScript(brief: ClientBrief): VideoScript {
+  const cast = industryCast(brief);
   const scenes: VideoScene[] = [];
-  const kicker = AUDIENCE_KICKER[brief.targetAudience];
+  const baseSeed = seedFrom(brief.clientName + brief.productName);
 
-  scenes.push({
-    id: "intro",
+  const push = (scene: VideoScene) => {
+    scenes.push({
+      ...scene,
+      imageSeed: scene.imageSeed ?? baseSeed + scenes.length * 17,
+    });
+  };
+
+  push({
+    id: "open",
     type: "intro",
-    kicker,
+    kicker: "COLD OPEN",
+    character: cast.hero.name,
+    characterRole: cast.hero.role,
+    location: cast.world,
     headline: brief.productName,
     subheadline: brief.tagline,
-    body: AUDIENCE_INTRO[brief.targetAudience],
-    voiceover: `${brief.clientName} presents ${brief.productName}. ${brief.tagline}. ${AUDIENCE_INTRO[brief.targetAudience]}`,
-    durationMs: 5200,
+    dialogue: `Five years with ${brief.clientName}. I did everything right.`,
+    voiceover: `${cast.hero.name} has been the perfect customer. Then the product has to prove it.`,
+    body: brief.tagline,
+    durationMs: 4800,
+    imagePrompt: platePrompt(
+      brief,
+      cast,
+      `${cast.hero.name} walks to her car at night, confident, city lights, medium-wide shot`
+    ),
   });
 
-  scenes.push({
-    id: "problem",
+  push({
+    id: "incident",
     type: "problem",
-    kicker: "THE STAKES",
-    headline: "What leadership cannot afford to miss",
+    kicker: "THE MOMENT",
+    character: cast.hero.name,
+    characterRole: cast.hero.role,
+    location: cast.world,
+    headline: "One ordinary knock",
+    subheadline: brief.problemStatement,
+    dialogue: "It was only a scrape. Then I thought about the renewal.",
+    voiceover: brief.problemStatement,
     body: brief.problemStatement,
-    subheadline: brief.desiredOutcome,
-    voiceover: `${brief.problemStatement} The outcome: ${brief.desiredOutcome}`,
-    durationMs: 6200,
+    durationMs: 5600,
+    imagePrompt: platePrompt(
+      brief,
+      cast,
+      `${cast.hero.name} froze beside a lightly scuffed bumper, worried close-up, rain on metal`
+    ),
   });
 
-  brief.highlights.forEach((highlight, index) => {
-    const kind = inferKind(highlight, index);
-    scenes.push({
-      id: `highlight-${index}`,
+  push({
+    id: "fear",
+    type: "problem",
+    kicker: "THE COST",
+    character: cast.hero.name,
+    characterRole: cast.hero.role,
+    location: "kitchen, night, phone glow",
+    headline: brief.tagline,
+    dialogue: `They said one claim could wipe my ${brief.tagline}.`,
+    voiceover: `Without ${brief.productName}, ${brief.problemStatement}`,
+    body: brief.problemStatement,
+    durationMs: 4800,
+    imagePrompt: platePrompt(
+      brief,
+      cast,
+      `${cast.hero.name} in a quiet kitchen at night staring at an insurance renewal on her phone, dread, intimate close-up`
+    ),
+  });
+
+  const beats = brief.highlights.slice(0, 3);
+  beats.forEach((highlight, index) => {
+    const withAlly = index !== 1;
+    push({
+      id: `beat-${index}`,
       type: "highlight",
-      kicker: `${String(index + 1).padStart(2, "0")}  ·  ${KIND_KICKER[kind] || "CALLOUT"}`,
+      kicker: "PRODUCT",
+      character: withAlly ? cast.ally.name : cast.hero.name,
+      characterRole: withAlly ? cast.ally.role : cast.hero.role,
+      location: withAlly ? `${brief.clientName} studio` : cast.world,
       headline: highlight.title,
-      body: highlight.description,
+      subheadline: highlight.description,
       metric: highlight.metric,
-      voiceover: voiceForHighlight(brief, highlight),
-      durationMs: highlight.metric ? 5600 : 5000,
+      dialogue: withAlly
+        ? `${brief.tagline} means ${highlight.title.toLowerCase()}. ${highlight.metric || "You keep what you earned."}`
+        : `Show me. ${highlight.title}.`,
+      voiceover: `${highlight.title}. ${highlight.description}${highlight.metric ? ` ${highlight.metric}.` : ""}`,
+      body: highlight.description,
+      durationMs: 5400,
+      imagePrompt: platePrompt(
+        brief,
+        cast,
+        withAlly
+          ? `${cast.ally.name} explains ${highlight.title} to ${cast.hero.name} across a black desk, product brochure for ${brief.productName}, two-shot`
+          : `${cast.hero.name} using a premium mobile app in the car, relief starting, ${highlight.title}`
+      ),
     });
   });
 
   const quote = brief.customerQuote?.trim();
   if (quote) {
-    scenes.push({
-      id: "quote",
+    push({
+      id: "testimonial",
       type: "quote",
-      kicker: "IN THE ROOM",
+      kicker: "REAL VOICE",
+      character: brief.quoteAttribution?.split(",")[0] || cast.hero.name,
+      characterRole: "Customer",
+      location: cast.world,
       headline: quote,
-      subheadline: brief.quoteAttribution?.trim() || brief.clientName,
-      voiceover: `${quote} ${brief.quoteAttribution || ""}`.trim(),
-      durationMs: 5500,
+      subheadline: brief.quoteAttribution,
+      dialogue: quote,
+      voiceover: quote,
+      durationMs: 5200,
+      imagePrompt: platePrompt(
+        brief,
+        cast,
+        `${cast.hero.name} smiling at renewal, golden hour through a car window, hopeful close-up`
+      ),
     });
   }
 
   const metrics = brief.highlights.filter((h) => h.metric?.trim());
   if (metrics.length >= 2) {
-    scenes.push({
-      id: "stats",
+    push({
+      id: "proof",
       type: "stats",
-      kicker: "PROOF IN NUMBERS",
-      headline: "Impact the board can measure",
+      kicker: "ON SCREEN",
+      character: cast.hero.name,
+      characterRole: cast.hero.role,
+      location: "renewal screen",
+      headline: "The renewal did not punish her",
       subheadline: metrics.map((h) => h.metric).join("  ·  "),
       body: metrics.map((h) => `${h.title}: ${h.metric}`).join(" | "),
-      voiceover: `Measured impact. ${metrics.map((h) => h.metric).join(". ")}.`,
-      durationMs: 4800,
+      dialogue: metrics.map((h) => h.metric).filter(Boolean).join(". ") + ".",
+      voiceover: `Measured. ${metrics.map((h) => h.metric).join(". ")}.`,
+      durationMs: 4600,
+      imagePrompt: platePrompt(
+        brief,
+        cast,
+        `${cast.hero.name} holds a phone showing a clean renewal, over-the-shoulder, shallow focus, night`
+      ),
     });
   }
 
-  scenes.push({
-    id: "cta",
+  push({
+    id: "packshot",
     type: "cta",
     kicker: brief.industry.toUpperCase(),
+    character: cast.ally.name,
+    characterRole: cast.ally.role,
+    location: "brand studio",
     headline: brief.callToAction,
-    subheadline: TONE_CLOSE[brief.tone],
-    voiceover: `${brief.callToAction}. ${TONE_CLOSE[brief.tone]}`,
-    durationMs: 4800,
+    subheadline: `${brief.clientName}  ·  ${brief.tagline}`,
+    dialogue: `${brief.productName}. ${brief.tagline}. ${brief.callToAction}.`,
+    voiceover: `${brief.callToAction}. ${brief.productName} from ${brief.clientName}.`,
+    durationMs: 5000,
+    imagePrompt: platePrompt(
+      brief,
+      cast,
+      `hero product packshot: ${cast.hero.name} and ${cast.ally.name} standing beside the black car, confident, night, cinematic wide`
+    ),
   });
 
-  scenes.push({
-    id: "outro",
+  push({
+    id: "endcard",
     type: "outro",
     kicker: brief.clientName.toUpperCase(),
-    headline: brief.productName,
-    subheadline: brief.tagline,
-    voiceover: `${brief.clientName}. ${brief.productName}.`,
+    character: brief.clientName,
+    characterRole: "Brand",
+    location: "end card",
+    headline: brief.clientName,
+    subheadline: `${brief.productName}  ·  ${brief.tagline}`,
+    dialogue: brief.tagline,
+    voiceover: `${brief.clientName}. ${brief.productName}. ${brief.tagline}.`,
     durationMs: 3600,
+    imagePrompt: platePrompt(
+      brief,
+      cast,
+      `empty night street, black car driving away, taillights bokeh, premium automotive insurance commercial, no people faces needed`
+    ),
   });
 
   const totalDurationMs = scenes.reduce((sum, scene) => sum + scene.durationMs, 0);
+  const beatList = beats.map(beatLine).join("; ");
 
   return {
-    title: `${brief.productName} — Executive Film`,
-    logline: `${brief.clientName} briefs the ${brief.targetAudience.toUpperCase()} on ${brief.productName}: ${brief.tagline}`,
+    title: `${brief.clientName} — ${brief.productName} (TV commercial)`,
+    logline: `${cast.hero.name} lives the problem, meets ${cast.ally.name}, and ${brief.productName} (${brief.tagline}) earns the renewal.`,
     scenes,
     totalDurationMs,
     narratorNotes: [
-      `Audience: ${brief.targetAudience.toUpperCase()}. Tone: ${brief.tone}.`,
-      `Industry: ${brief.industry}. ${brief.highlights.length} product callouts.`,
-      `Open on stakes, then feature each callout with on-screen proof, close on ${brief.callToAction}.`,
-      `Keep titles large. Do not crowd. Treat metrics as board artifacts, not decoration.`,
+      `TV commercial, not a slide film. Recurring cast: ${cast.hero.name} (${cast.hero.role}) and ${cast.ally.name}.`,
+      `World: ${cast.world}. Product beats: ${beatList}.`,
+      `Shoot photoreal plates, Ken Burns in the cut, burnt-in dialogue like a broadcast spot.`,
     ].join(" "),
   };
 }
