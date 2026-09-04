@@ -4,6 +4,9 @@ const repoBase = "/Test2";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    serverComponentsExternalPackages: ["@prisma/client", "prisma"],
+  },
   ...(isStatic
     ? {
         output: "export",
