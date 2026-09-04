@@ -2,11 +2,14 @@ export type AudienceType = "ceo" | "cto" | "marketing" | "mixed";
 
 export type VideoTone = "executive" | "technical" | "visionary" | "bold";
 
+export type HighlightKind = "capability" | "outcome" | "proof";
+
 export interface ProductHighlight {
   id: string;
   title: string;
   description: string;
   metric?: string;
+  kind?: HighlightKind;
 }
 
 export interface ClientBrief {
@@ -14,6 +17,10 @@ export interface ClientBrief {
   productName: string;
   tagline: string;
   industry: string;
+  problemStatement: string;
+  desiredOutcome: string;
+  customerQuote?: string;
+  quoteAttribution?: string;
   targetAudience: AudienceType;
   tone: VideoTone;
   brandColor: string;
@@ -21,18 +28,30 @@ export interface ClientBrief {
   callToAction: string;
 }
 
+export type SceneType =
+  | "intro"
+  | "problem"
+  | "highlight"
+  | "quote"
+  | "stats"
+  | "cta"
+  | "outro";
+
 export interface VideoScene {
   id: string;
-  type: "intro" | "highlight" | "stats" | "cta" | "outro";
+  type: SceneType;
+  kicker?: string;
   headline: string;
   subheadline?: string;
   body?: string;
   metric?: string;
+  voiceover?: string;
   durationMs: number;
 }
 
 export interface VideoScript {
   title: string;
+  logline: string;
   scenes: VideoScene[];
   totalDurationMs: number;
   narratorNotes: string;

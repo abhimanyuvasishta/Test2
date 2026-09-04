@@ -1,78 +1,82 @@
 import OpenAI from "openai";
 import type { ClientBrief, GenerationResult, VideoScript } from "@/types";
-import { generateTemplateScript } from "./template-script";
+import { generateTemplateScript } from "./director";
 
-const SYSTEM_PROMPT = `You are an elite B2B video scriptwriter who creates cinematic, executive-level product demo videos for CEOs, CTOs, and marketing leaders.
+const SYSTEM_PROMPT = `You are an elite director of boardroom product films for CEOs, CTOs, and CMOs.
 
-Your scripts must be:
-- Concise and impactful — every word earns its place
-- Authority-building with confident, declarative language
-- Structured for visual storytelling with clear scene transitions
-- Tailored to the specified audience and tone
+Write cinematic, high-authority scripts. Short headlines. No hype adjectives that a CFO would mock. Every scene must earn its seconds.
 
-Return ONLY valid JSON matching this schema:
+Return ONLY valid JSON:
 {
-  "title": "string — video title",
+  "title": "string",
+  "logline": "one sentence for the brief packet",
   "scenes": [
     {
       "id": "unique string",
-      "type": "intro" | "highlight" | "stats" | "cta" | "outro",
-      "headline": "string — main on-screen text, max 8 words",
-      "subheadline": "optional string — supporting line",
-      "body": "optional string — detail text for highlight scenes",
-      "metric": "optional string — bold stat or proof point",
-      "durationMs": number between 3000 and 6000
+      "type": "intro" | "problem" | "highlight" | "quote" | "stats" | "cta" | "outro",
+      "kicker": "optional uppercase eyebrow, max 6 words",
+      "headline": "main on-screen text, max 8 words except quote scenes",
+      "subheadline": "optional supporting line",
+      "body": "optional detail",
+      "metric": "optional proof point",
+      "voiceover": "spoken line, one or two sentences",
+      "durationMs": number between 3500 and 6500
     }
   ],
-  "narratorNotes": "string — brief production notes for voiceover",
-  "totalDurationMs": number — sum of scene durations
+  "narratorNotes": "production notes",
+  "totalDurationMs": number
 }
 
-Scene structure:
-1. intro — cinematic opening with product name and tagline
-2. highlight — one scene per product highlight (use type "highlight")
-3. stats — optional proof-point montage if metrics exist
-4. cta — compelling call to action
-5. outro — brand closing with client name
+Required order:
+1. intro — product name, tagline, audience kicker
+2. problem — the stakes from the problem statement, outcome card from desiredOutcome
+3. highlight — exactly one scene per product callout, in the given order
+4. quote — only if a customer quote is provided
+5. stats — only if two or more metrics exist
+6. cta
+7. outro — client name and product
 
-Keep total video between 25-45 seconds. Headlines must be punchy, not sentences.`;
+Keep the film between 30 and 55 seconds. Headlines are titles, not sentences.`;
 
 function buildUserPrompt(brief: ClientBrief): string {
   const audienceLabels: Record<string, string> = {
-    ceo: "CEO — focus on ROI, strategic advantage, market leadership",
-    cto: "CTO — focus on architecture, scalability, security, integration",
-    marketing: "CMO/Marketing — focus on brand impact, customer outcomes, differentiation",
-    mixed: "C-suite mixed audience — balance strategic and technical proof points",
+    ceo: "CEO — ROI, strategic advantage, downside of delay",
+    cto: "CTO — architecture, reliability, security, time-to-production",
+    marketing: "CMO — category story, differentiation, memorable proof",
+    mixed: "CEO + CTO + marketing in one room — balance stakes, system, and story",
   };
 
   const toneLabels: Record<string, string> = {
     executive: "Polished, authoritative, boardroom-ready",
-    technical: "Precise, credible, engineering-focused",
-    visionary: "Aspirational, future-forward, transformative",
-    bold: "Disruptive, confident, category-defining",
+    technical: "Precise, inspectable, engineering-credible",
+    visionary: "Aspirational but concrete",
+    bold: "Category-defining, still adult",
   };
 
   const highlightsText = brief.highlights
-    .map(
-      (h, i) =>
-        `${i + 1}. ${h.title}\n   ${h.description}${h.metric ? `\n   Key metric: ${h.metric}` : ""}`
-    )
+    .map((h, i) => {
+      const kind = h.kind ? ` [${h.kind}]` : "";
+      const metric = h.metric ? `\n   Metric: ${h.metric}` : "";
+      return `${i + 1}. ${h.title}${kind}\n   ${h.description}${metric}`;
+    })
     .join("\n\n");
 
-  return `Create a professional demo video script for:
+  return `Direct an executive product film.
 
 Client: ${brief.clientName}
 Product: ${brief.productName}
 Tagline: ${brief.tagline}
 Industry: ${brief.industry}
-Target audience: ${audienceLabels[brief.targetAudience]}
+Audience: ${audienceLabels[brief.targetAudience]}
 Tone: ${toneLabels[brief.tone]}
+Problem / stakes: ${brief.problemStatement}
+Desired outcome: ${brief.desiredOutcome}
+Customer quote: ${brief.customerQuote || "(none)"}
+Quote attribution: ${brief.quoteAttribution || "(none)"}
 Call to action: ${brief.callToAction}
 
-Product highlights to feature:
-${highlightsText}
-
-Generate the JSON script now.`;
+Product callouts to feature, in order:
+${highlightsText}`;
 }
 
 function parseScriptResponse(content: string): VideoScript {
@@ -84,6 +88,7 @@ function parseScriptResponse(content: string): VideoScript {
   }
 
   parsed.totalDurationMs = parsed.scenes.reduce((sum, s) => sum + (s.durationMs || 4000), 0);
+  parsed.logline = parsed.logline || parsed.title;
   return parsed;
 }
 
@@ -119,7 +124,7 @@ export async function generateVideoScript(brief: ClientBrief): Promise<Generatio
       source: "ai",
     };
   } catch (error) {
-    console.error("AI generation failed, falling back to template:", error);
+    console.error("AI generation failed, falling back to director engine:", error);
     return {
       script: generateTemplateScript(brief),
       source: "template",
