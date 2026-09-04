@@ -61,8 +61,12 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
     let cancelled = false;
     setPlatesReady(false);
     setCastStatus("Casting characters and generating commercial plates…");
-    loadScriptPlates(script.scenes, (done, total) => {
-      if (!cancelled) setCastStatus(`Shot ${done} of ${total} in camera…`);
+    loadScriptPlates(script.scenes, (done, total, map) => {
+      if (cancelled) return;
+      platesRef.current = map;
+      setPlates(map);
+      if (Object.keys(map).length > 0) setPlatesReady(true);
+      setCastStatus(`Shot ${done} of ${total} in camera…`);
     })
       .then((loaded) => {
         if (cancelled) return;

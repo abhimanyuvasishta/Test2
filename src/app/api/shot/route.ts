@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
   const upstream = `https://image.pollinations.ai/prompt/${encodeURIComponent(
     prompt
-  )}?width=1280&height=720&nologo=true&enhance=true&seed=${encodeURIComponent(seed)}`;
+  )}?width=1280&height=720&nologo=true&seed=${encodeURIComponent(seed)}`;
 
   const response = await fetch(upstream, {
     headers: { Accept: "image/*" },
