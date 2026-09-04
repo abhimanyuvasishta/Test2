@@ -19,6 +19,7 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
   const [exportProgress, setExportProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const animationRef = useRef<number | null>(null);
 
   const renderPreview = useCallback(
@@ -84,6 +85,7 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
 
     setIsExporting(true);
     setExportProgress(0);
+    setExportError(null);
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
       setDownloadUrl(null);
@@ -107,6 +109,11 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
       link.click();
     } catch (err) {
       console.error("Export failed:", err);
+      setExportError(
+        err instanceof Error
+          ? err.message
+          : "Video export failed. Try Chrome or Edge, then Play Preview first."
+      );
     } finally {
       setIsExporting(false);
     }
@@ -183,6 +190,11 @@ export default function VideoStudio({ brief, script, source, onBack }: VideoStud
               <a href={downloadUrl} download className="btn-secondary text-sm">
                 Download Again
               </a>
+            </div>
+          )}
+          {exportError && (
+            <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+              {exportError}
             </div>
           )}
         </div>

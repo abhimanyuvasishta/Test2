@@ -1,5 +1,27 @@
 import type { ClientBrief, VideoScene } from "@/types";
 
+function ensureRoundRect(ctx: CanvasRenderingContext2D): void {
+  if (typeof ctx.roundRect === "function") return;
+  ctx.roundRect = function (
+    this: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radii: number | DOMPointInit | (number | DOMPointInit)[] = 0
+  ) {
+    const r = typeof radii === "number" ? radii : 8;
+    this.beginPath();
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+    return this;
+  };
+}
+
 export interface RenderContext {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
@@ -156,6 +178,7 @@ function drawMetricBadge(
 
   ctx.fillStyle = brandColor;
   ctx.beginPath();
+  ensureRoundRect(ctx);
   ctx.roundRect(x, y, badgeWidth, badgeHeight, 8);
   ctx.fill();
 
@@ -288,6 +311,7 @@ function renderCtaScene(rc: RenderContext, scene: VideoScene, progress: number):
   ctx.globalAlpha = btnProgress;
   ctx.fillStyle = brandColor;
   ctx.beginPath();
+  ensureRoundRect(ctx);
   ctx.roundRect(btnX, btnY, btnWidth, btnHeight, 12);
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -399,10 +423,22 @@ export async function exportVideo(options: VideoExportOptions): Promise<Blob> {
   canvas.width = width;
   canvas.height = height;
 
+  if (typeof MediaRecorder === "undefined") {
+    throw new Error("This browser cannot record video. Use Chrome or Edge.");
+  }
+  if (typeof canvas.captureStream !== "function") {
+    throw new Error("This browser cannot capture canvas video. Use Chrome or Edge.");
+  }
+
   const stream = canvas.captureStream(30);
   const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
     ? "video/webm;codecs=vp9"
-    : "video/webm";
+    : MediaRecorder.isTypeSupported("video/webm")
+      ? "video/webm"
+      : "";
+  if (!mimeType) {
+    throw new Error("WebM recording is not supported in this browser. Use Chrome or Edge.");
+  }
 
   const recorder = new MediaRecorder(stream, {
     mimeType,

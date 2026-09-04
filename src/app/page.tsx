@@ -8,6 +8,7 @@ import VideoStudio from "@/components/VideoStudio";
 import StepIndicator from "@/components/StepIndicator";
 import type { ClientBrief, GenerationResult } from "@/types";
 import type { ClientBriefInput } from "@/lib/validation";
+import { generateScript } from "@/lib/generate-script";
 
 const STEPS = [
   { id: 1, label: "Client Brief" },
@@ -35,18 +36,7 @@ export default function HomePage() {
     };
 
     try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(clientBrief),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Generation failed");
-      }
-
-      const result: GenerationResult = await response.json();
+      const result = await generateScript(clientBrief);
       setBrief(clientBrief);
       setGeneration(result);
       setStep(2);

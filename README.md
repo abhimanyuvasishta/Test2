@@ -22,11 +22,25 @@ npm install
 cp .env.example .env.local
 # Add your OPENAI_API_KEY to .env.local
 
-# Start development server
+# Start development server (binds 0.0.0.0:3000)
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
+
+The app also runs as a static site (no Node API required). Script generation falls back to the on-device template when `/api/generate` is unavailable.
+
+## GitHub Pages
+
+Production URL: https://abhimanyuvasishta.github.io/Test2
+
+```bash
+npm run build:pages
+```
+
+That writes a static export to `docs/` and to the repo root (`index.html`, `_next/`) so GitHub Pages can serve the video studio instead of the old CrossUI sample.
+
+Enable Pages: **Settings → Pages → Deploy from GitHub Actions**, or publish the `master` branch root / `/docs` folder.
 
 ## Workflow
 
