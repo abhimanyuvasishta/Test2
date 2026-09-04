@@ -14,10 +14,25 @@ The app is a Next.js app that also exports as a static GitHub Pages site. Static
 
 ## Quick start
 
+`package.json` lives in the **Test2 repo folder**, not in your home directory. If npm reports `ENOENT` for `/Users/<you>/package.json`, you ran the command from the wrong folder.
+
 ```bash
+# clone if you do not have the repo yet
+git clone https://github.com/abhimanyuvasishta/Test2.git
+cd Test2
+
+# use the film-studio branch, then install from this folder
+git checkout cursor/executive-ai-video-studio-6b98
 npm install
 cp .env.example .env.local   # optional, for GPT scripts
 npm run dev
+```
+
+Confirm you are in the right place first:
+
+```bash
+pwd          # should end with /Test2
+ls           # should list package.json, src/, README.md
 ```
 
 Open http://localhost:3000
