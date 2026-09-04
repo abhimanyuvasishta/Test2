@@ -1,4 +1,5 @@
 import type { ClientBrief, SceneType, VideoScene } from "@/types";
+import { filmAccent, hexToRgb, onFilmAccent } from "./color";
 import { createCinematicScore } from "./score";
 
 function ensureRoundRect(ctx: CanvasRenderingContext2D): void {
@@ -33,17 +34,6 @@ export interface RenderContext {
   sceneIndex: number;
   sceneCount: number;
   filmProgress: number;
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-      }
-    : { r: 196, g: 165, b: 116 };
 }
 
 function easeOutCubic(t: number): number {
@@ -257,7 +247,7 @@ function drawMetricBadge(
   ctx.roundRect(x, y, badgeWidth, badgeHeight, 4);
   ctx.fill();
 
-  ctx.fillStyle = "#0a0a0c";
+  ctx.fillStyle = onFilmAccent(brandColor);
   ctx.textAlign = "left";
   ctx.fillText(metric, x + padding, y + 38);
   ctx.globalAlpha = 1;
@@ -617,7 +607,7 @@ function renderCtaScene(rc: RenderContext, scene: VideoScene, progress: number):
   ctx.roundRect(btnX, btnY, btnWidth, btnHeight, 6);
   ctx.fill();
   ctx.font = `600 22px ${displayFont()}`;
-  ctx.fillStyle = "#0a0a0c";
+  ctx.fillStyle = onFilmAccent(brandColor);
   ctx.textAlign = "center";
   ctx.fillText("CONTINUE THE BRIEFING", width / 2, btnY + 44);
   ctx.globalAlpha = 1;
@@ -700,10 +690,11 @@ export function renderScene(
 ): void {
   const { ctx, width, height } = rc;
   ctx.clearRect(0, 0, width, height);
+  const painted: RenderContext = { ...rc, brandColor: filmAccent(rc.brandColor) };
   const renderer = SCENE_RENDERERS[scene.type] || renderHighlightScene;
-  renderer(rc, scene, sceneProgress);
-  drawCaptions(rc, scene, sceneProgress);
-  drawChrome(rc, sceneProgress);
+  renderer(painted, scene, sceneProgress);
+  drawCaptions(painted, scene, sceneProgress);
+  drawChrome(painted, sceneProgress);
 }
 
 export interface VideoExportOptions {
