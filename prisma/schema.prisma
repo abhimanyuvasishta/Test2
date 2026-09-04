@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Series {
+  id          String      @id @default(cuid())
+  name        String
+  niche       String
+  stylePrompt String
+  aspectRatio String      @default("9:16")
+  voiceId     String      @default("narrator")
+  palette     String      @default("#f59e0b,#1a1208,#fff7ed")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  characters  Character[]
+  products    Product[]
+  episodes    Episode[]
+}
+
+model Character {
+  id          String @id @default(cuid())
+  seriesId    String
+  name        String
+  role        String @default("cast")
+  personality String
+  lookPrompt  String
+  voiceId     String @default("narrator")
+  series      Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id            String @id @default(cuid())
+  seriesId      String
+  name          String
+  lookPrompt    String
+  mustShowBeats String @default("[]")
+  series        Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+}
+
+model Episode {
+  id              String   @id @default(cuid())
+  seriesId        String
+  number          Int
+  command         String
+  status          String   @default("draft")
+  productionJson  String?
+  outputRelPath   String?
+  captionsRelPath String?
+  audioRelPath    String?
+  error           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  series          Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+}

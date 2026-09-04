@@ -1,6 +1,6 @@
 {
-  "name": "Client Video Studio",
-  "install": "npm ci",
+  "name": "AI Video Creator",
+  "install": "npm ci && npx prisma generate && npx prisma db push",
   "terminals": [
     {
       "name": "Next.js",

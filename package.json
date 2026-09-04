@@ -3,13 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 3000",
-    "build": "next build",
+    "dev": "prisma generate && prisma db push && next dev -H 0.0.0.0 -p 3000",
+    "build": "prisma generate && prisma db push && next build",
     "build:pages": "bash scripts/build-pages.sh",
     "start": "next start -H 0.0.0.0 -p 3000",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "render:sample": "tsx scripts/render-sample.ts",
+    "postinstall": "DATABASE_URL=file:./prisma/dev.db prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "next": "^14.2.5",
     "openai": "^4.56.0",
     "react": "^18.3.1",
@@ -26,7 +31,10 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.5",
     "postcss": "^8.4.39",
+    "prisma": "^5.22.0",
     "tailwindcss": "^3.4.6",
-    "typescript": "^5.5.3"
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.3",
+    "vitest": "^2.1.8"
   }
 }
