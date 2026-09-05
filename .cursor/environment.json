@@ -1,11 +1,11 @@
 {
-  "name": "Client Video Studio",
+  "name": "Forge AI Video Creator",
   "install": "npm ci",
   "terminals": [
     {
       "name": "Next.js",
       "command": "npm run dev",
-      "description": "Client Video Studio dev server on port 3000"
+      "description": "Forge AI Video Creator on port 3000"
     }
   ],
   "ports": [

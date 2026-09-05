@@ -1,75 +1,49 @@
 import { z } from "zod";
+import type { CommandInput } from "@/types";
 
-export const productHighlightSchema = z.object({
-  id: z.string(),
-  title: z.string().min(1, "Title is required").max(80),
-  description: z.string().min(1, "Description is required").max(300),
-  metric: z.string().max(40).optional(),
+export const characterDraftSchema = z.object({
+  name: z.string().min(1).max(40),
+  role: z.string().max(80).default(""),
 });
 
-export const clientBriefSchema = z.object({
-  clientName: z.string().min(1, "Client name is required").max(100),
-  productName: z.string().min(1, "Product name is required").max(100),
-  tagline: z.string().min(1, "Tagline is required").max(150),
-  industry: z.string().min(1, "Industry is required").max(80),
-  targetAudience: z.enum(["ceo", "cto", "marketing", "mixed"]),
-  tone: z.enum(["executive", "technical", "visionary", "bold"]),
-  brandColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Valid hex color required"),
-  highlights: z.array(productHighlightSchema).min(1, "Add at least one highlight").max(8),
-  callToAction: z.string().min(1, "Call to action is required").max(120),
+export const commandInputSchema = z.object({
+  command: z.string().min(8, "Describe the video you want").max(2000),
+  format: z.enum(["faceless", "product", "conversation", "series"]),
+  aspect: z.enum(["landscape", "vertical", "square"]),
+  niche: z.string().max(80).default(""),
+  episodeCount: z.number().int().min(1).max(12),
+  characters: z.array(characterDraftSchema).max(6),
+  productName: z.string().max(80).default(""),
+  productFeatures: z.string().max(400).default(""),
+  brandColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
 });
 
-export type ClientBriefInput = z.infer<typeof clientBriefSchema>;
+export type CommandInputParsed = z.infer<typeof commandInputSchema>;
 
-export const defaultBrief: ClientBriefInput = {
-  clientName: "",
+export const defaultCommand: CommandInput = {
+  command: "",
+  format: "faceless",
+  aspect: "vertical",
+  niche: "",
+  episodeCount: 5,
+  characters: [],
   productName: "",
-  tagline: "",
-  industry: "",
-  targetAudience: "mixed",
-  tone: "executive",
+  productFeatures: "",
   brandColor: "#6366f1",
-  highlights: [
-    {
-      id: "1",
-      title: "",
-      description: "",
-      metric: "",
-    },
-  ],
-  callToAction: "Schedule a strategic demo today",
 };
 
-export const sampleBrief: ClientBriefInput = {
-  clientName: "Acme Corp",
-  productName: "Nexus Platform",
-  tagline: "Enterprise intelligence, reimagined",
-  industry: "Enterprise SaaS",
-  targetAudience: "mixed",
-  tone: "executive",
-  brandColor: "#6366f1",
-  highlights: [
-    {
-      id: "1",
-      title: "Unified Data Intelligence",
-      description:
-        "Consolidate siloed data sources into a single source of truth with real-time analytics.",
-      metric: "40% faster decisions",
-    },
-    {
-      id: "2",
-      title: "Enterprise-Grade Security",
-      description:
-        "SOC 2 Type II certified with zero-trust architecture and end-to-end encryption.",
-      metric: "99.99% uptime SLA",
-    },
-    {
-      id: "3",
-      title: "AI-Powered Insights",
-      description:
-        "Predictive analytics and natural language queries that surface actionable intelligence.",
-      metric: "3x ROI in year one",
-    },
+export const sampleCommand: CommandInput = {
+  command:
+    "Animated series: two founders, Maya and Leo, build FluxMug — a leak-proof travel mug. Episode 1 is the prototype disaster in a rideshare. Keep the product and characters locked. End on a cliffhanger.",
+  format: "series",
+  aspect: "vertical",
+  niche: "Founder story",
+  episodeCount: 6,
+  characters: [
+    { name: "Maya", role: "Designer / narrator" },
+    { name: "Leo", role: "Engineer" },
   ],
-  callToAction: "Transform your enterprise. Book a demo.",
+  productName: "FluxMug",
+  productFeatures: "Leak-proof lid, 12-hour heat, one-hand open",
+  brandColor: "#f59e0b",
 };

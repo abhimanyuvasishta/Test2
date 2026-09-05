@@ -13,9 +13,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Client Video Studio — AI-Powered Executive Demos",
+  title: "Forge — AI Video Creator",
   description:
-    "Generate professional, impactful product demo videos for CEOs, CTOs, and marketing leaders using AI.",
+    "Generate faceless shorts, product films, character conversations, and animated series from a single command.",
 };
 
 export default function RootLayout({
