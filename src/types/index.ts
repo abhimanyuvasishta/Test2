@@ -1,44 +1,105 @@
-export type AudienceType = "ceo" | "cto" | "marketing" | "mixed";
+export type AspectRatio = "landscape" | "vertical" | "square";
+export type VideoFormat = "faceless" | "product" | "conversation" | "series";
+export type ShotType =
+  | "title"
+  | "hook"
+  | "narration"
+  | "dialogue"
+  | "product"
+  | "broll"
+  | "text_message"
+  | "cta";
+export type VisualMood = "dark" | "neon" | "clean" | "warm" | "crime" | "playful";
+export type VoiceStyle = "narrator" | "warm" | "sharp" | "deep" | "bright";
 
-export type VideoTone = "executive" | "technical" | "visionary" | "bold";
-
-export interface ProductHighlight {
+export interface Character {
   id: string;
-  title: string;
-  description: string;
-  metric?: string;
+  name: string;
+  role: string;
+  look: string;
+  voice: VoiceStyle;
+  color: string;
 }
 
-export interface ClientBrief {
-  clientName: string;
-  productName: string;
+export interface ProductBible {
+  name: string;
   tagline: string;
-  industry: string;
-  targetAudience: AudienceType;
-  tone: VideoTone;
+  category: string;
+  features: string[];
   brandColor: string;
-  highlights: ProductHighlight[];
-  callToAction: string;
 }
 
-export interface VideoScene {
+export interface Shot {
   id: string;
-  type: "intro" | "highlight" | "stats" | "cta" | "outro";
-  headline: string;
-  subheadline?: string;
-  body?: string;
-  metric?: string;
+  type: ShotType;
+  speakerId?: string;
+  line: string;
+  onScreen: string;
+  visual: string;
+  captionStyle: "kinetic" | "subtitle" | "none";
   durationMs: number;
 }
 
-export interface VideoScript {
+export interface EpisodeOutline {
+  number: number;
   title: string;
-  scenes: VideoScene[];
-  totalDurationMs: number;
-  narratorNotes: string;
+  logline: string;
+  hook: string;
 }
 
-export interface GenerationResult {
-  script: VideoScript;
+export interface ProductionBible {
+  title: string;
+  logline: string;
+  format: VideoFormat;
+  niche: string;
+  mood: VisualMood;
+  aspect: AspectRatio;
+  characters: Character[];
+  product?: ProductBible;
+  captionTheme: string;
+  voiceoverStyle: string;
+}
+
+export interface Episode {
+  number: number;
+  title: string;
+  recap?: string;
+  shots: Shot[];
+  totalDurationMs: number;
+}
+
+export interface Production {
+  bible: ProductionBible;
+  episode: Episode;
+  seasonPlan: EpisodeOutline[];
+  source: "ai" | "template";
+  estimatedCredits: number;
+}
+
+export interface CharacterDraft {
+  name: string;
+  role: string;
+}
+
+export interface CommandInput {
+  command: string;
+  format: VideoFormat;
+  aspect: AspectRatio;
+  niche: string;
+  episodeCount: number;
+  characters: CharacterDraft[];
+  productName: string;
+  productFeatures: string;
+  brandColor: string;
+}
+
+export interface SavedSeries {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  input: CommandInput;
+  bible: ProductionBible;
+  seasonPlan: EpisodeOutline[];
+  episodes: Episode[];
   source: "ai" | "template";
 }
